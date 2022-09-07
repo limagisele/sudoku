@@ -35,10 +35,10 @@ defmodule Sudoku.Game do
 
   def solved?(board), do: board == @sudoku_solved
 
-  def check_pos(board, pos) do
+  def check_pos(pos) do
     cond do
       pos < 0 or pos > 80 -> {:error, :invalid_position}
-      !pos_editable?(board, pos) -> {:error, :position_not_editable}
+      !pos_editable?(pos) -> {:error, :position_not_editable}
       true -> {:ok, pos}
     end
   end
@@ -147,24 +147,24 @@ defmodule Sudoku.Game do
   end
 
   def play_at(board, pos, guess) do
-    with {:ok, valid_pos}     <- check_pos(board, pos),
+    with {:ok, valid_pos}     <- check_pos(pos),
          {:ok, valid_guess}   <- check_number(guess),
          {:ok, updated_board, message} <- add_guess(board, valid_pos, valid_guess),
     do: {:ok, updated_board, message}
   end
 
-  def all_editable_pos(board) do
-    board
+  def all_editable_pos do
+    @sudoku_to_solve
     |> Tuple.to_list
     |> Enum.with_index
     |> Enum.filter(fn x -> elem(x, 0) == 0 end)
     |> Enum.map(fn x -> elem(x, 1) end)
   end
 
-  def pos_editable?(board, pos), do: pos in all_editable_pos(board)
+  def pos_editable?(pos), do: pos in all_editable_pos()
 
   def undo_play(board, pos) do
-    editable? = pos_editable?(board, pos)
+    editable? = pos_editable?(pos)
 
     case editable? do
       true  -> put_elem(board, pos, 0)
