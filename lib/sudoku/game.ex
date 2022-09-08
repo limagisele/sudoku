@@ -1,5 +1,4 @@
 defmodule Sudoku.Game do
-  alias Sudoku.{State, CLI}
 
   # @sudoku_to_solve {
   #   0, 4, 0, 0, 0, 0, 1, 7, 9,
@@ -39,12 +38,6 @@ defmodule Sudoku.Game do
 
   def new, do: @sudoku_to_solve
 
-  def start(ui) do
-    with {:ok, game} <- State.new(ui),
-         {:ok, game} <- State.event(game, {:start_game}),
-    do: game, else: (error -> error)
-  end
-
   def solved?(board), do: board == @sudoku_solved
 
   def check_pos(pos) do
@@ -62,8 +55,8 @@ defmodule Sudoku.Game do
     end
   end
 
-  @spec valid?([integer]) :: boolean
-  def valid?(area) do
+  @spec present?([integer]) :: boolean
+  def present?(area) do
     area
     |> Enum.reduce_while(
       [],
@@ -73,8 +66,8 @@ defmodule Sudoku.Game do
       end
     )
     |> case do
-      :error -> false
-      _ -> true
+      :error -> true
+      _ -> false
     end
   end
 
@@ -107,65 +100,49 @@ defmodule Sudoku.Game do
     end)
   end
 
-  def valid_row?(board, row) do
+  def number_in_row?(board, row) do
     board
     |> extract_row(row)
-    |> valid?()
+    |> present?()
   end
 
-  def valid_col?(board, col) do
+  def number_in_col?(board, col) do
     board
     |> extract_col(col)
-    |> valid?()
+    |> present?()
   end
 
-  def valid_grid?(board, row, col) do
+  def number_in_grid?(board, row, col) do
     board
     |> extract_grid(row, col)
-    |> valid?()
-  end
-
-  def handle(%{status: :playing} = game) do
-    with {pos, guess} <- game.ui.(game, :get_input),
-         {:ok, updated_board, message} <- play_at(game.board, pos, guess),
-         {:ok, game} <- State.event(%{game | board: updated_board}, {:board_solved?, updated_board})
-    do
-      IO.puts(message)
-      handle(game)
-    else
-      (error -> error)
-    end
-  end
-
-  def handle(%{status: :game_over} = game) do
-    IO.puts("You Won!")
-    CLI.display(game.board)
+    |> present?()
   end
 
   def add_guess(board, pos, guess) do
     row = div(pos, 9)
     col = rem(pos, 9)
     possible_board = put_elem(board, pos, guess)
-    guess_in_row? = !valid_row?(possible_board, row)
-    guess_in_col? = !valid_col?(possible_board, col)
-    guess_in_grid? = !valid_grid?(possible_board, row, col)
+
+    invalid_row? = number_in_row?(possible_board, row)
+    invalid_col? = number_in_col?(possible_board, col)
+    invalid_grid? = number_in_grid?(possible_board, row, col)
 
     cond do
       guess == elem(@sudoku_solved, pos) -> {:ok, put_elem(board, pos, guess), "Good guess"}
-      guess_in_col? and guess_in_row? and guess_in_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row}, col #{col} and grid"}
-      guess_in_col? and guess_in_row? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row} and col #{col}"}
-      guess_in_col? and guess_in_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on col #{col} and grid"}
-      guess_in_row? and guess_in_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row} and grid"}
-      guess_in_row? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row}"}
-      guess_in_col? -> {:ok, put_elem(board, pos, guess), "Number already present on col #{col}"}
-      guess_in_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on grid"}
+      invalid_col? and invalid_row? and invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row}, col #{col} and grid"}
+      invalid_col? and invalid_row? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row} and col #{col}"}
+      invalid_col? and invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on col #{col} and grid"}
+      invalid_row? and invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row} and grid"}
+      invalid_row? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row}"}
+      invalid_col? -> {:ok, put_elem(board, pos, guess), "Number already present on col #{col}"}
+      invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on grid"}
       true -> {:ok, put_elem(board, pos, guess), ""}
     end
   end
 
   def play_at(board, pos, guess) do
-    with {:ok, valid_pos}     <- check_pos(pos),
-         {:ok, valid_guess}   <- check_number(guess),
+    with {:ok, valid_pos} <- check_pos(pos),
+         {:ok, valid_guess} <- check_number(guess),
          {:ok, updated_board, message} <- add_guess(board, valid_pos, valid_guess),
     do: {:ok, updated_board, message}
   end
