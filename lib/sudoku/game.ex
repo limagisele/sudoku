@@ -14,8 +14,8 @@ defmodule Sudoku.Game do
 
   @sudoku_to_solve {
     0, 4, 0, 6, 3, 2, 1, 7, 9,
-    7, 3, 2, 9, 1, 8, 6, 5, 4,
-    1, 9, 6, 7, 4, 5, 3, 2, 8,
+    0, 0, 2, 9, 1, 8, 6, 5, 4,
+    0, 0, 6, 7, 4, 5, 3, 2, 8,
     6, 8, 3, 5, 7, 4, 9, 1, 2,
     4, 5, 7, 2, 9, 1, 8, 3, 6,
     2, 1, 9, 8, 6, 3, 5, 4, 7,
@@ -48,6 +48,16 @@ defmodule Sudoku.Game do
     end
   end
 
+  def all_editable_pos do
+    @sudoku_to_solve
+    |> Tuple.to_list
+    |> Enum.with_index
+    |> Enum.filter(fn x -> elem(x, 0) == 0 end)
+    |> Enum.map(fn x -> elem(x, 1) end)
+  end
+
+  def pos_editable?(pos), do: pos in all_editable_pos()
+
   def check_number(guess) do
     cond do
       guess < 1 or guess > 9 -> {:error, :invalid_number}
@@ -55,20 +65,22 @@ defmodule Sudoku.Game do
     end
   end
 
-  @spec present?([integer]) :: boolean
-  def present?(area) do
-    area
-    |> Enum.reduce_while(
-      [],
-      fn
-        0, seen -> {:cont, seen}
-        number, seen -> if number in seen, do: {:halt, :error}, else: {:cont, [number | seen]}
-      end
-    )
-    |> case do
-      :error -> true
-      _ -> false
-    end
+  def number_in_row?(board, row) do
+    board
+    |> extract_row(row)
+    |> present?()
+  end
+
+  def number_in_col?(board, col) do
+    board
+    |> extract_col(col)
+    |> present?()
+  end
+
+  def number_in_grid?(board, row, col) do
+    board
+    |> extract_grid(row, col)
+    |> present?()
   end
 
   def extract_row(board, row) do
@@ -100,22 +112,20 @@ defmodule Sudoku.Game do
     end)
   end
 
-  def number_in_row?(board, row) do
-    board
-    |> extract_row(row)
-    |> present?()
-  end
-
-  def number_in_col?(board, col) do
-    board
-    |> extract_col(col)
-    |> present?()
-  end
-
-  def number_in_grid?(board, row, col) do
-    board
-    |> extract_grid(row, col)
-    |> present?()
+  @spec present?([integer]) :: boolean
+  def present?(area) do
+    area
+    |> Enum.reduce_while(
+      [],
+      fn
+        0, seen -> {:cont, seen}
+        number, seen -> if number in seen, do: {:halt, :error}, else: {:cont, [number | seen]}
+      end
+    )
+    |> case do
+      :error -> true
+      _ -> false
+    end
   end
 
   def add_guess(board, pos, guess) do
@@ -146,16 +156,6 @@ defmodule Sudoku.Game do
          {:ok, updated_board, message} <- add_guess(board, valid_pos, valid_guess),
     do: {:ok, updated_board, message}
   end
-
-  def all_editable_pos do
-    @sudoku_to_solve
-    |> Tuple.to_list
-    |> Enum.with_index
-    |> Enum.filter(fn x -> elem(x, 0) == 0 end)
-    |> Enum.map(fn x -> elem(x, 1) end)
-  end
-
-  def pos_editable?(pos), do: pos in all_editable_pos()
 
   def undo_play(board, pos) do
     editable? = pos_editable?(pos)
