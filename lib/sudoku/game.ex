@@ -137,7 +137,7 @@ defmodule Sudoku.Game do
 
     cond do
       guess == elem(@sudoku_solved, pos) -> {:correct_guess, put_elem(board, pos, guess)}
-      invalid_col? or invalid_row? or invalid_grid? -> {:number_already_present, put_elem(board, pos, guess)}
+      invalid_col? or invalid_row? or invalid_grid? -> {:wrong_guess, put_elem(board, pos, guess)}
       true -> {:wrong_guess, put_elem(board, pos, guess)}
     end
   end

@@ -5,6 +5,5 @@ defmodule Sudoku.State do
             player: nil,
             winner: false,
             board: Game.new(),
-            wrong_pos_filled: {},
-            ui: nil
+            wrong_pos_filled: []
 end

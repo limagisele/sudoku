@@ -31,12 +31,38 @@ defmodule Sudoku.Server do
   end
 
   def play(state) do
-    with {pos, guess} <- get_input(),
-        {message, updated_board} <- Game.play_at(state.board, pos, guess),
-        new_state <- board_solved?(updated_board)
-    do
-      IO.puts("#{IO.ANSI.yellow()}#{message}#{IO.ANSI.reset()}")
-      play(new_state)
+    {pos, guess} = get_input()
+    {message, updated_board} = Game.play_at(state.board, pos, guess)
+
+    wrong_pos_list =
+    case {message, updated_board} do
+      {:wrong_guess, _} -> add_wrong_pos(state, pos)
+      {:correct_guess, _} -> remove_wrong_pos(state, pos)
+      {_, _} -> state.wrong_pos_filled
+    end
+
+    partial_state = board_solved?(updated_board)
+
+    IO.puts("#{IO.ANSI.yellow()}#{message}#{IO.ANSI.reset()}")
+
+    new_state = %State{partial_state | wrong_pos_filled: wrong_pos_list}
+
+    IO.puts("#{IO.ANSI.red()}Wrong positions filled: #{inspect new_state.wrong_pos_filled}#{IO.ANSI.reset()}")
+
+    play(new_state)
+  end
+
+  def add_wrong_pos(state, pos) do
+    case pos in state.wrong_pos_filled do
+      false -> [ pos | state.wrong_pos_filled]
+      true -> state.wrong_pos_filled
+    end
+  end
+
+  def remove_wrong_pos(state, pos) do
+    case pos in state.wrong_pos_filled do
+      true -> List.delete(state.wrong_pos_filled, pos)
+      false -> state.wrong_pos_filled
     end
   end
 
