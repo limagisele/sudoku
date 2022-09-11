@@ -14,8 +14,8 @@ defmodule Sudoku.Game do
 
   @sudoku_to_solve {
     0, 4, 0, 6, 3, 2, 1, 7, 9,
-    0, 0, 2, 9, 1, 8, 6, 5, 4,
-    0, 0, 6, 7, 4, 5, 3, 2, 8,
+    0, 3, 2, 9, 1, 8, 6, 5, 4,
+    1, 9, 6, 7, 4, 5, 3, 2, 8,
     6, 8, 3, 5, 7, 4, 9, 1, 2,
     4, 5, 7, 2, 9, 1, 8, 3, 6,
     2, 1, 9, 8, 6, 3, 5, 4, 7,
@@ -36,31 +36,29 @@ defmodule Sudoku.Game do
     9, 2, 8, 3, 5, 7, 4, 6, 1
   }
 
+  @all_editable_pos @sudoku_to_solve
+                      |> Tuple.to_list
+                      |> Enum.with_index
+                      |> Enum.filter(fn x -> elem(x, 0) == 0 end)
+                      |> Enum.map(fn x -> elem(x, 1) end)
+
   def new, do: @sudoku_to_solve
 
   def solved?(board), do: board == @sudoku_solved
 
   def check_pos(pos) do
     cond do
-      pos < 0 or pos > 80 -> {:error, :invalid_position}
-      !pos_editable?(pos) -> {:error, :position_not_editable}
+      pos < 0 or pos > 80 -> :invalid_position
+      !pos_editable?(pos) -> :position_not_editable
       true -> {:ok, pos}
     end
   end
 
-  def all_editable_pos do
-    @sudoku_to_solve
-    |> Tuple.to_list
-    |> Enum.with_index
-    |> Enum.filter(fn x -> elem(x, 0) == 0 end)
-    |> Enum.map(fn x -> elem(x, 1) end)
-  end
-
-  def pos_editable?(pos), do: pos in all_editable_pos()
+  def pos_editable?(pos), do: pos in @all_editable_pos
 
   def check_number(guess) do
     cond do
-      guess < 1 or guess > 9 -> {:error, :invalid_number}
+      guess < 1 or guess > 9 -> :invalid_number
       true -> {:ok, guess}
     end
   end
@@ -138,23 +136,21 @@ defmodule Sudoku.Game do
     invalid_grid? = number_in_grid?(possible_board, row, col)
 
     cond do
-      guess == elem(@sudoku_solved, pos) -> {:ok, put_elem(board, pos, guess), "Good guess"}
-      invalid_col? and invalid_row? and invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row}, col #{col} and grid"}
-      invalid_col? and invalid_row? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row} and col #{col}"}
-      invalid_col? and invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on col #{col} and grid"}
-      invalid_row? and invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row} and grid"}
-      invalid_row? -> {:ok, put_elem(board, pos, guess), "Number already present on row #{row}"}
-      invalid_col? -> {:ok, put_elem(board, pos, guess), "Number already present on col #{col}"}
-      invalid_grid? -> {:ok, put_elem(board, pos, guess), "Number already present on grid"}
-      true -> {:ok, put_elem(board, pos, guess), ""}
+      guess == elem(@sudoku_solved, pos) -> {:correct_guess, put_elem(board, pos, guess)}
+      invalid_col? or invalid_row? or invalid_grid? -> {:number_already_present, put_elem(board, pos, guess)}
+      true -> {:wrong_guess, put_elem(board, pos, guess)}
     end
   end
 
   def play_at(board, pos, guess) do
     with {:ok, valid_pos} <- check_pos(pos),
          {:ok, valid_guess} <- check_number(guess),
-         {:ok, updated_board, message} <- add_guess(board, valid_pos, valid_guess),
-    do: {:ok, updated_board, message}
+         {message, updated_board} <- add_guess(board, valid_pos, valid_guess)
+    do
+      {message, updated_board}
+    else
+      error -> {error, board}
+    end
   end
 
   def undo_play(board, pos) do
@@ -162,7 +158,7 @@ defmodule Sudoku.Game do
 
     case editable? do
       true  -> put_elem(board, pos, 0)
-      false -> {:error, "Position is not editable."}
+      false -> {:error, :position_not_editable}
     end
   end
 end

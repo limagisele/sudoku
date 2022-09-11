@@ -25,4 +25,4 @@ sudoku-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
-/lib/sudoku/old
+/lib/generator
